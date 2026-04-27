@@ -7,9 +7,11 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM nginx:stable-alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-# Copy a custom nginx config to handle SPA routing if necessary
-# For now, standard nginx will work for simple routing
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+FROM node:20-alpine
+WORKDIR /app
+RUN npm install -g serve
+COPY --from=build /app/dist ./dist
+# Cloud Run sets the PORT environment variable. 
+# 'serve' will automatically listen on $PORT if provided.
+EXPOSE 8080
+CMD ["serve", "-s", "dist", "-l", "8080"]
