@@ -1,0 +1,133 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-pixel: "Press Start 2P", cursive;
+  --font-inter: "Inter", sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-inter);
+  background-color: #050507; /* Very dark void */
+  color: #e2e8f0;
+  overflow-x: hidden;
+}
+
+/* Headings will use pixel font */
+h1, h2, h3, h4, h5, h6, .pixel-text {
+  font-family: var(--font-pixel);
+}
+
+/* Cyber Panel */
+.cyber-panel {
+  background-color: #0a0a0c;
+  border: 2px solid #1a1a24;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.cyber-panel:hover {
+  border-color: #00F0FF;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.2), inset 0 0 10px rgba(0, 240, 255, 0.05);
+}
+
+.cyber-panel-pink:hover {
+  border-color: #FF003C;
+  box-shadow: 0 0 10px rgba(255, 0, 60, 0.2), inset 0 0 10px rgba(255, 0, 60, 0.05);
+}
+
+.cyber-panel-purple:hover {
+  border-color: #AA3BFF;
+  box-shadow: 0 0 10px rgba(170, 59, 255, 0.2), inset 0 0 10px rgba(170, 59, 255, 0.05);
+}
+
+.cyber-panel-green:hover {
+  border-color: #00FF66;
+  box-shadow: 0 0 10px rgba(0, 255, 102, 0.2), inset 0 0 10px rgba(0, 255, 102, 0.05);
+}
+
+/* Minimalist Inputs */
+.cyber-input {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid #333;
+  color: #fff;
+  padding: 8px 4px;
+  font-family: var(--font-inter);
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.cyber-input:focus {
+  outline: none;
+  border-bottom-color: #00F0FF;
+}
+
+/* Cyber Button */
+.cyber-btn {
+  background: transparent;
+  border: 2px solid #555;
+  color: #fff;
+  padding: 12px 24px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+}
+
+.cyber-btn:hover {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+}
+
+.cyber-btn.is-primary {
+  border-color: #AA3BFF;
+  color: #AA3BFF;
+}
+.cyber-btn.is-primary:hover {
+  background: #AA3BFF;
+  color: #000;
+  box-shadow: 0 0 15px rgba(170, 59, 255, 0.5);
+}
+
+.cyber-btn.is-error {
+  border-color: #FF003C;
+  color: #FF003C;
+}
+.cyber-btn.is-error:hover {
+  background: #FF003C;
+  color: #000;
+  box-shadow: 0 0 15px rgba(255, 0, 60, 0.5);
+}
+
+/* Scanline Overlay - More subtle */
+.scanlines {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0) 50%,
+    rgba(0, 0, 0, 0.1) 50%,
+    rgba(0, 0, 0, 0.1)
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.5;
+}
+
+/* Subtle Pixel Grid Background */
+.pixel-bg {
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
