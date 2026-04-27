@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --pixel:#0f0f23;
+  --green:#00ff41;
+  --cyan:#00ffff;
+  --yellow:#ffff00;
+  --red:#ff0040;
+  --purple:#bf00ff;
+  --orange:#ff8c00;
+  --bg:#0a0a1a;
+  --bg2:#12122a;
+  --bg3:#1a1a35;
+  --border:#2a2a5a;
+  --text:#e0e0ff;
+}
+body{background:var(--bg);color:var(--text);font-family:'Press Start 2P',monospace;font-size:8px;min-height:100vh;overflow-x:hidden}
+.scanlines{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.15) 2px,rgba(0,0,0,0.15) 4px);z-index:9999}
+.crt{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,0.5) 100%);z-index:9998}
+
+/* Layout */
+.app-wrapper{max-width:900px;margin:0 auto;padding:8px}
+.header{text-align:center;padding:12px 0 8px;border-bottom:2px solid var(--green);margin-bottom:8px}
+.header h1{color:var(--green);font-size:14px;text-shadow:0 0 10px var(--green),0 0 20px var(--green);animation:glow 2s ease-in-out infinite alternate}
+.header .sub{color:var(--cyan);font-size:7px;margin-top:6px}
+.player-bar{display:flex;align-items:center;gap:12px;padding:6px 8px;background:var(--bg2);border:1px solid var(--border);margin-bottom:8px;font-size:7px}
+.xp-bar-wrap{flex:1;background:#000;border:1px solid var(--green);height:10px;position:relative}
+.xp-bar{height:100%;background:var(--green);transition:width 0.5s;box-shadow:0 0 6px var(--green)}
+.xp-label{position:absolute;right:2px;top:50%;transform:translateY(-50%);color:#000;font-size:5px;font-family:'Press Start 2P',monospace}
+
+/* Nav */
+.nav{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+.nav-btn{flex:1;padding:6px 4px;background:var(--bg2);border:2px solid var(--border);color:var(--text);font-family:'Press Start 2P',monospace;font-size:6px;cursor:pointer;transition:all 0.1s;text-align:center;min-width:80px}
+.nav-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.nav-btn.active{border-color:var(--yellow);color:var(--yellow);background:rgba(255,255,0,0.05);box-shadow:0 0 8px rgba(255,255,0,0.3)}
+
+/* Panels */
+.panel{background:var(--bg2);border:2px solid var(--border);padding:10px;display:none}
+.panel.active{display:block}
+.panel-title{color:var(--yellow);font-size:10px;border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:10px;text-shadow:0 0 8px var(--yellow)}
+
+/* Pixel inputs */
+.px-input{width:100%;background:#000;border:2px solid var(--border);color:var(--green);font-family:'Press Start 2P',monospace;font-size:8px;padding:6px;outline:none;margin-bottom:6px}
+.px-input:focus{border-color:var(--cyan)}
+.px-btn{background:#000;border:2px solid var(--green);color:var(--green);font-family:'Press Start 2P',monospace;font-size:8px;padding:6px 10px;cursor:pointer;transition:all 0.1s}
+.px-btn:hover{background:var(--green);color:#000}
+.px-btn.red{border-color:var(--red);color:var(--red)}
+.px-btn.red:hover{background:var(--red);color:#000}
+.px-btn.purple{border-color:var(--purple);color:var(--purple)}
+.px-btn.purple:hover{background:var(--purple);color:#000}
+
+/* Avatar Canvas */
+.avatar-area{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.avatar-box{width:120px;flex-shrink:0}
+.avatar-canvas{width:120px;height:120px;image-rendering:pixelated;border:2px solid var(--border)}
+.stats-area{flex:1;min-width:160px}
+.stat-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-size:7px}
+.stat-val{color:var(--cyan)}
+
+/* Boss Arena */
+.boss-arena{position:relative;background:#000;border:2px solid var(--red);padding:10px;margin-bottom:10px;min-height:100px;overflow:hidden}
+.boss-sprite{font-size:40px;display:block;text-align:center;transition:transform 0.3s;cursor:default}
+.boss-health-bar{width:100%;background:#330000;border:1px solid var(--red);height:12px;margin-top:6px}
+.boss-health-fill{height:100%;background:var(--red);transition:width 0.5s;box-shadow:0 0 6px var(--red)}
+.attack-flash{animation:attackAnim 0.5s ease}
+@keyframes attackAnim{0%,100%{transform:scale(1)}50%{transform:scale(1.3) rotate(10deg)}}
+
+/* Quest list */
+.quest-item{display:flex;align-items:center;gap:8px;padding:6px;border:1px solid var(--border);margin-bottom:4px;cursor:pointer;transition:all 0.2s}
+.quest-item:hover{border-color:var(--cyan)}
+.quest-item.done{opacity:0.5;text-decoration:line-through}
+.quest-check{width:12px;height:12px;border:1px solid var(--green);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--green)}
+.quest-check.checked{background:var(--green);color:#000}
+
+/* Inventory */
+.inv-item{display:flex;align-items:center;justify-content:space-between;padding:5px 6px;border:1px solid var(--border);margin-bottom:3px;font-size:7px}
+.inv-item.danger{border-color:var(--red);animation:dangerPulse 1s ease infinite alternate}
+@keyframes dangerPulse{from{background:transparent}to{background:rgba(255,0,64,0.1)}}
+.tag{padding:2px 5px;font-size:6px;font-family:'Press Start 2P',monospace}
+.tag.safe{background:#003300;color:var(--green);border:1px solid var(--green)}
+.tag.warn{background:#330000;color:var(--red);border:1px solid var(--red)}
+
+/* Notification */
+.notif{position:fixed;bottom:16px;right:16px;background:var(--bg3);border:2px solid var(--yellow);padding:10px;max-width:240px;z-index:10000;font-size:7px;animation:slideIn 0.3s ease;display:none}
+.notif.show{display:block}
+.notif-title{color:var(--yellow);margin-bottom:4px}
+@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:10001;display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--bg3);border:3px solid var(--yellow);padding:14px;max-width:320px;width:90%;text-align:center;animation:popIn 0.3s ease}
+@keyframes popIn{from{transform:scale(0.5)}to{transform:scale(1)}}
+.modal-icon{font-size:32px;margin-bottom:8px;display:block}
+.modal h2{color:var(--yellow);font-size:9px;margin-bottom:6px}
+.modal p{color:var(--text);font-size:7px;line-height:1.6;margin-bottom:10px}
+
+/* Flash / XP pop */
+.xp-pop{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--yellow);font-size:16px;font-family:'Press Start 2P',monospace;text-shadow:0 0 20px var(--yellow);pointer-events:none;z-index:10002;display:none;animation:xpFloat 1.5s ease forwards}
+@keyframes xpFloat{0%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-200%) scale(1.5)}}
+@keyframes glow{from{text-shadow:0 0 10px var(--green)}to{text-shadow:0 0 20px var(--green),0 0 40px var(--green)}}
+
+/* Boss fire animation */
+.fire-anim{display:flex;justify-content:center;gap:4px;margin-top:4px}
+.flame{width:8px;height:16px;background:var(--orange);border-radius:50% 50% 0 0;animation:flicker 0.3s ease infinite alternate}
+.flame:nth-child(2){height:12px;animation-delay:0.1s;background:var(--yellow)}
+.flame:nth-child(3){height:20px;animation-delay:0.2s}
+@keyframes flicker{from{transform:scaleX(1)}to{transform:scaleX(0.6)}}
+
+/* Pixel art sprites via CSS */
+.sprite{image-rendering:pixelated;display:block}
+
+label{display:block;color:var(--cyan);font-size:7px;margin-bottom:3px;margin-top:6px}
+select.px-input{cursor:pointer}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mt{margin-top:8px}
+.bmi-result{font-size:9px;color:var(--yellow);padding:6px;border:1px solid var(--yellow);margin-top:8px;text-align:center}
+.bmi-class{font-size:7px;color:var(--green);margin-top:4px;text-align:center}
+.recipe-box{background:rgba(0,255,65,0.05);border:1px solid var(--green);padding:6px;margin-top:6px;font-size:7px;line-height:1.8;color:var(--green)}
+.day-label{color:var(--purple);font-size:7px;text-align:center;margin-bottom:6px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:4px;align-items:end}
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<div class="crt"></div>
+
+<div class="app-wrapper">
+  <div class="header">
+    <div class="h1">&#9608;EIGHT_BIT_LOCKER&#9608;</div>
+    <div class="sub">HEALTH RPG v1.0 &mdash; PLAYER1 LOGGED IN</div>
+  </div>
+
+  <div class="player-bar">
+    <span style="color:var(--yellow)">PLAYER1</span>
+    <span style="color:var(--cyan)">XP:</span>
+    <div class="xp-bar-wrap" style="flex:1;max-width:200px">
+      <div class="xp-bar" id="xpBar" style="width:0%"></div>
+    </div>
+    <span id="xpNum" style="color:var(--green);font-size:7px">0/1000</span>
+    <span style="color:var(--purple)">LVL <span id="lvlNum">1</span></span>
+  </div>
+
+  <div class="nav">
+    <button class="nav-btn active" onclick="switchTab('vault')">&#9829; AVATAR VAULT</button>
+    <button class="nav-btn" onclick="switchTab('boss')">&#9760; BOSS FIGHT</button>
+    <button class="nav-btn" onclick="switchTab('quest')">&#9733; SIDE QUESTS</button>
+    <button class="nav-btn" onclick="switchTab('inv')">&#9993; INVENTORY</button>
+  </div>
+
+  <!-- AVATAR VAULT -->
+  <div class="panel active" id="tab-vault">
+    <div class="panel-title">[ THE AVATAR VAULT ] BMI STATS</div>
+    <div class="avatar-area">
+      <div class="avatar-box">
+        <canvas class="avatar-canvas" id="avatarCanvas" width="80" height="80"></canvas>
+        <div style="text-align:center;margin-top:4px;font-size:7px;color:var(--purple)" id="avatarLabel">???</div>
+      </div>
+      <div class="stats-area">
+        <label>HEIGHT (m)</label>
+        <input class="px-input" type="number" id="height" placeholder="e.g. 1.75" step="0.01" min="1" max="2.5">
+        <label>WEIGHT (kg)</label>
+        <input class="px-input" type="number" id="weight" placeholder="e.g. 70" step="0.1" min="20" max="300">
+        <button class="px-btn mt" onclick="calcBMI()">&#9658; CALCULATE BMI</button>
+        <div id="bmiResult" style="display:none">
+          <div class="bmi-result">BMI: <span id="bmiVal">--</span></div>
+          <div class="bmi-class" id="bmiClass"></div>
+        </div>
+        <div id="statsBlock" style="margin-top:8px;display:none">
+          <div class="stat-row"><span>STATUS</span><span class="stat-val" id="statStatus">--</span></div>
+          <div class="stat-row"><span>SPRITE</span><span class="stat-val" id="statSprite">--</span></div>
+          <div class="stat-row"><span>POWER</span><span class="stat-val" id="statPower">--</span></div>
+          <div class="stat-row"><span>AGILITY</span><span class="stat-val" id="statAgility">--</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOSS FIGHT -->
+  <div class="panel" id="tab-boss">
+    <div class="panel-title">[ BOSS FIGHT ] CALORIE LOGGER</div>
+    <div class="boss-arena" id="bossArena">
+      <canvas id="bossCanvas" width="200" height="80" style="display:block;margin:0 auto;image-rendering:pixelated"></canvas>
+      <div id="bossName" style="text-align:center;font-size:8px;color:var(--red);margin-top:4px">NO ENEMY</div>
+      <div class="boss-health-bar"><div class="boss-health-fill" id="bossHpBar" style="width:0%"></div></div>
+    </div>
+    <label>MEAL NAME</label>
+    <input class="px-input" type="text" id="mealName" placeholder="e.g. Double Cheeseburger">
+    <label>CALORIES (kcal)</label>
+    <input class="px-input" type="number" id="mealCal" placeholder="e.g. 900" min="0" max="5000">
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <button class="px-btn" onclick="spawnBoss()">&#9658; ENCOUNTER BOSS</button>
+      <button class="px-btn red" id="attackBtn" onclick="attackBoss()" style="display:none">&#9889; ATTACK!</button>
+    </div>
+    <div id="battleLog" style="margin-top:8px;font-size:6px;line-height:2;color:var(--text)"></div>
+  </div>
+
+  <!-- SIDE QUESTS -->
+  <div class="panel" id="tab-quest">
+    <div class="panel-title">[ SIDE QUESTS ] WEEKLY PLANNER</div>
+    <div class="day-label" id="dayLabel"></div>
+    <div id="questList"></div>
+    <div style="margin-top:8px;font-size:7px;color:var(--cyan)">COMPLETED: <span id="questCount" style="color:var(--yellow)">0/3</span></div>
+  </div>
+
+  <!-- INVENTORY -->
+  <div class="panel" id="tab-inv">
+    <div class="panel-title">[ INVENTORY GUARDIAN ] FRIDGE AGENT</div>
+    <div class="form-row">
+      <div>
+        <label>ITEM NAME</label>
+        <input class="px-input" type="text" id="invName" placeholder="e.g. Milk">
+      </div>
+      <div>
+        <label>EXPIRY DATE</label>
+        <input class="px-input" type="date" id="invExpiry">
+      </div>
+    </div>
+    <button class="px-btn mt" onclick="addItem()">&#9658; ADD TO LOCKER</button>
+    <div id="invList" style="margin-top:8px"></div>
+    <div id="recipeBox"></div>
+  </div>
+</div>
+
+<!-- Notification -->
+<div class="notif" id="notif">
+  <div class="notif-title" id="notifTitle"></div>
+  <div id="notifMsg"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <span class="modal-icon" id="modalIcon"></span>
+    <h2 id="modalTitle"></h2>
+    <p id="modalMsg"></p>
+    <button class="px-btn" onclick="closeModal()">&#9654; OK</button>
+  </div>
+</div>
+
+<!-- XP Pop -->
+<div class="xp-pop" id="xpPop">+50 XP!</div>
+
+<script>
+// ========================
+// STATE (localStorage + MockAuth)
+// ========================
+const STORAGE_KEY = 'eight_bit_locker_p1';
+let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || {
+  user_id:'Player1',
+  xp:0,
+  level:1,
+  bmi:null,
+  avatarType:'unknown',
+  inventory:[],
+  quests:{},
+  bossActive:false,
+  bossHp:100
+};
+const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+// ========================
+// SERVICES / LOGIC AGENT
+// ========================
+const logicAgent = {
+  classifyBMI(bmi){
+    if(bmi<18.5) return {label:'UNDERWEIGHT',sprite:'Wisp',color:'#00ffff',power:30,agility:90};
+    if(bmi<25)   return {label:'HEALTHY - HERO',sprite:'Hero',color:'#00ff41',power:70,agility:75};
+    if(bmi<30)   return {label:'OVERWEIGHT - TANK',sprite:'Tank',color:'#ffff00',power:90,agility:40};
+    return {label:'OBESE - GLITCHY',sprite:'Glitch',color:'#ff0040',power:50,agility:20};
+  },
+  classifyMeal(kcal){
+    if(kcal>=800) return {type:'epic_boss',name:'GREASE GOLEM',hp:100,emoji:'&#128027;',color:'#ff0040',xp:100};
+    if(kcal>=400) return {type:'boss',name:'CARB KNIGHT',hp:60,emoji:'&#128165;',color:'#ff8c00',xp:60};
+    return {type:'minion',name:'HEALTH FAIRY',hp:20,emoji:'&#127838;',color:'#00ff41',xp:20};
+  },
+  getQuestsForDay(day){
+    const all = [
+      {id:'hydrate',name:'HYDRATION STATION',desc:'Drink 8 glasses of water',icon:'&#128167;'},
+      {id:'steps',name:'STEP QUEST',desc:'Walk 8,000 steps today',icon:'&#128099;'},
+      {id:'sleep',name:'SLEEP SHIELD',desc:'Sleep 7-8 hours tonight',icon:'&#128164;'},
+      {id:'veg',name:'VEGGIE RAID',desc:'Eat 3 servings of vegetables',icon:'&#129382;'},
+      {id:'stretch',name:'FLEX PROTOCOL',desc:'15 min stretching',icon:'&#129337;'},
+      {id:'mindful',name:'ZEN MODE',desc:'10 min meditation',icon:'&#129504;'},
+      {id:'protein',name:'PROTEIN POWER',desc:'Hit your protein goal',icon:'&#129316;'}
+    ];
+    const sets = [[0,1,2],[1,2,3],[2,3,4],[3,4,5],[4,5,6],[5,6,0],[6,0,1]];
+    return sets[day].map(i => all[i]);
+  },
+  checkInventoryExpiry(items){
+    const now = new Date(); now.setHours(0,0,0,0);
+    return items.filter(item => {
+      const exp = new Date(item.expiry); exp.setHours(0,0,0,0);
+      const diff = Math.ceil((exp - now)/(1000*60*60*24));
+      return diff <= 2 && diff >= 0;
+    });
+  },
+  generateRecipeQuest(item){
+    const recipes = {
+      default:`Use ${item.name} in a quick stir-fry or smoothie!`,
+      milk:`Quest: Brew a warm golden milk or make overnight oats with ${item.name}!`,
+      chicken:`Quest: Grill ${item.name} with herbs — Boss Battle fuel!`,
+      eggs:`Quest: Scramble ${item.name} for a Protein Power breakfast!`,
+      spinach:`Quest: Blend ${item.name} into a Green Shield smoothie!`
+    };
+    const key = Object.keys(recipes).find(k => item.name.toLowerCase().includes(k)) || 'default';
+    return recipes[key];
+  }
+};
+
+// ========================
+// XP / LEVEL SYSTEM
+// ========================
+function addXP(amount){
+  state.xp += amount;
+  if(state.xp >= state.level * 1000){
+    state.level++;
+    showModal('&#11088;','LEVEL UP!',`You reached LEVEL ${state.level}! New powers unlocked!`,'#ffff00');
+  }
+  save();
+  renderXP();
+  flashXP(`+${amount} XP!`);
+}
+function renderXP(){
+  const max = state.level * 1000;
+  const pct = Math.min(100,(state.xp/max)*100);
+  document.getElementById('xpBar').style.width = pct+'%';
+  document.getElementById('xpNum').textContent = state.xp+'/'+max;
+  document.getElementById('lvlNum').textContent = state.level;
+}
+function flashXP(txt){
+  const el = document.getElementById('xpPop');
+  el.textContent = txt;
+  el.style.display = 'block';
+  el.style.animation = 'none';
+  el.offsetHeight;
+  el.style.animation = 'xpFloat 1.5s ease forwards';
+  setTimeout(()=>el.style.display='none',1500);
+}
+
+// ========================
+// NOTIFICATIONS
+// ========================
+let notifTimeout;
+function showNotif(title,msg){
+  const n = document.getElementById('notif');
+  document.getElementById('notifTitle').textContent = title;
+  document.getElementById('notifMsg').textContent = msg;
+  n.classList.add('show');
+  clearTimeout(notifTimeout);
+  notifTimeout = setTimeout(()=>n.classList.remove('show'),4000);
+}
+function showModal(icon,title,msg,color='#ffff00'){
+  document.getElementById('modalIcon').innerHTML = icon;
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalTitle').style.color = color;
+  document.getElementById('modalMsg').textContent = msg;
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal(){document.getElementById('modal').classList.remove('show')}
+
+// ========================
+// NAVIGATION
+// ========================
+function switchTab(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ========================
+// AVATAR VAULT
+// ========================
+function calcBMI(){
+  const h = parseFloat(document.getElementById('height').value);
+  const w = parseFloat(document.getElementById('weight').value);
+  if(!h||!w||h<0.5||w<10){showNotif('ERROR','Invalid height or weight!');return;}
+  const bmi = w/(h*h);
+  const cls = logicAgent.classifyBMI(bmi);
+  state.bmi = bmi; state.avatarType = cls.sprite; save();
+  document.getElementById('bmiVal').textContent = bmi.toFixed(1);
+  document.getElementById('bmiClass').textContent = cls.label;
+  document.getElementById('bmiClass').style.color = cls.color;
+  document.getElementById('bmiResult').style.display = 'block';
+  document.getElementById('statsBlock').style.display = 'block';
+  document.getElementById('statStatus').textContent = cls.label;
+  document.getElementById('statSprite').textContent = cls.sprite;
+  document.getElementById('statPower').textContent = cls.power;
+  document.getElementById('statAgility').textContent = cls.agility;
+  document.getElementById('avatarLabel').textContent = cls.sprite;
+  document.getElementById('avatarLabel').style.color = cls.color;
+  drawAvatar(cls.sprite, cls.color);
+  addXP(10);
+  showNotif('AVATAR UPDATED!', `BMI ${bmi.toFixed(1)} — ${cls.sprite} sprite unlocked!`);
+}
+function drawAvatar(type, color){
+  const canvas = document.getElementById('avatarCanvas');
+  const ctx = canvas.getContext('2d');
+  const W=80, H=80;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0,0,W,H);
+  const px = (x,y,w,h,c) => {ctx.fillStyle=c;ctx.fillRect(x*5,y*5,w*5,h*5)};
+  const col = color;
+  const dark = '#000';
+  const skin = '#ffd080';
+  const eye = '#ffffff';
+
+  if(type==='Hero'){
+    // Hero — slim, upright
+    px(6,2,4,4,col);       // head
+    px(7,3,2,2,skin);      // face
+    px(7,3,1,1,eye); px(8,3,1,1,eye);
+    px(5,6,6,5,col);       // torso
+    px(4,11,2,4,'#5555ff');// left leg
+    px(10,11,2,4,'#5555ff');
+    px(3,6,2,3,col);       // left arm
+    px(11,6,2,3,col);      // right arm
+    px(4,2,1,2,'#ffff00'); // cape top
+    px(4,4,1,1,'#ffff00');
+  } else if(type==='Wisp'){
+    // Wisp — tiny floaty
+    px(7,4,2,2,col);
+    px(6,5,4,3,col);
+    px(7,5,1,1,eye); px(8,5,1,1,eye);
+    px(5,8,1,2,col); px(7,9,1,2,col); px(9,8,1,2,col);
+    for(let i=0;i<5;i++) px(3+i*2,2,1,1,'#ffffff');
+  } else if(type==='Tank'){
+    // Tank — wide, heavy
+    px(5,2,6,5,col);       // big head
+    px(6,3,4,2,skin);      // face
+    px(6,3,1,1,eye); px(9,3,1,1,eye);
+    px(3,7,10,5,col);      // wide torso
+    px(3,12,4,4,'#333');   // left leg
+    px(9,12,4,4,'#333');
+    px(1,7,2,4,col);       // left arm
+    px(13,7,2,4,col);
+  } else if(type==='Glitch'){
+    // Glitch — corrupted
+    ctx.fillStyle='#ff0040';
+    for(let i=0;i<30;i++){
+      const gx=Math.random()*70+5, gy=Math.random()*70+5;
+      const gw=Math.random()*12+3, gh=Math.random()*4+2;
+      ctx.fillRect(gx,gy,gw,gh);
+    }
+    ctx.fillStyle='#00ffff';
+    for(let i=0;i<15;i++){
+      ctx.fillRect(Math.random()*70+5,Math.random()*70+5,Math.random()*8+2,2);
+    }
+    px(6,3,4,4,'#ff0040');
+    px(7,4,1,1,'#ffffff'); px(8,4,1,1,'#ffffff');
+  } else {
+    // Unknown
+    ctx.fillStyle='#333';
+    ctx.fillRect(10,10,60,60);
+    ctx.fillStyle='#666';
+    ctx.font='bold 20px monospace';
+    ctx.fillText('???',22,45);
+  }
+}
+
+// ========================
+// BOSS FIGHT
+// ========================
+let currentBoss = null;
+let bossHpCurrent = 0;
+
+function spawnBoss(){
+  const name = document.getElementById('mealName').value.trim();
+  const kcal = parseFloat(document.getElementById('mealCal').value);
+  if(!name || !kcal){showNotif('ERROR','Enter meal name and calories!');return;}
+  currentBoss = logicAgent.classifyMeal(kcal);
+  bossHpCurrent = currentBoss.hp;
+  document.getElementById('bossName').innerHTML = `${currentBoss.emoji} ${currentBoss.name}`;
+  document.getElementById('bossName').style.color = currentBoss.color;
+  document.getElementById('bossHpBar').style.width = '100%';
+  document.getElementById('bossHpBar').style.background = currentBoss.color;
+  document.getElementById('attackBtn').style.display = 'inline-block';
+  const log = document.getElementById('battleLog');
+  log.innerHTML = '';
+  addLog(`> ENCOUNTER: ${currentBoss.name} appears! (${kcal} kcal)`);
+  if(currentBoss.type==='epic_boss'){
+    addLog('> BOSS MUSIC PLAYING... &#9834;');
+    addLog('> WARNING: EPIC BOSS DETECTED!');
+    showModal(currentBoss.emoji,'EPIC BOSS FIGHT!',`A ${currentBoss.name} has emerged from your ${name}! ATTACK to burn those ${kcal} calories!`,currentBoss.color);
+  } else if(currentBoss.type==='minion'){
+    addLog('> A gentle breeze... HEALTH FAIRY appears!');
+    showModal(currentBoss.emoji,'HEALTH FAIRY!',`${name} (${kcal} kcal) summoned a Health Fairy! Healthy choice!`,'#00ff41');
+  } else {
+    addLog('> A CARB KNIGHT approaches!');
+  }
+  drawBoss(currentBoss);
+}
+
+function attackBoss(){
+  if(!currentBoss) return;
+  const dmg = Math.floor(Math.random()*30)+20;
+  bossHpCurrent = Math.max(0, bossHpCurrent - dmg);
+  const pct = (bossHpCurrent / currentBoss.hp)*100;
+  document.getElementById('bossHpBar').style.width = pct+'%';
+  addLog(`> YOU DEAL ${dmg} DMG! Boss HP: ${bossHpCurrent}/${currentBoss.hp}`);
+  const canvas = document.getElementById('bossCanvas');
+  canvas.style.animation='none'; canvas.offsetHeight;
+  canvas.style.animation='attackAnim 0.5s ease';
+  if(bossHpCurrent<=0){
+    addLog(`> ${currentBoss.name} DEFEATED! +${currentBoss.xp} XP!`);
+    addXP(currentBoss.xp);
+    document.getElementById('attackBtn').style.display='none';
+    document.getElementById('bossName').innerHTML = '&#9989; DEFEATED!';
+    clearBossCanvas();
+    showNotif('VICTORY!',`${currentBoss.name} defeated! Calorie logged!`);
+    currentBoss = null;
+  }
+}
+
+function addLog(msg){
+  const log = document.getElementById('battleLog');
+  log.innerHTML += msg+'<br>';
+  log.scrollTop = log.scrollHeight;
+}
+
+function drawBoss(boss){
+  const canvas = document.getElementById('bossCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,200,80);
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0,0,200,80);
+  const px=(x,y,w,h,c)=>{ctx.fillStyle=c;ctx.fillRect(x*4,y*4,w*4,h*4)};
+  if(boss.type==='epic_boss'){
+    // Grease Golem
+    px(12,3,16,14,'#553300');
+    px(10,5,2,8,'#553300'); px(28,5,2,8,'#553300');
+    px(14,5,12,3,'#ffaa00');
+    px(14,8,3,3,'#ff4400'); px(23,8,3,3,'#ff4400');
+    px(16,11,8,2,'#ffff00');
+    px(10,17,20,3,'#333300');
+    for(let i=0;i<5;i++) px(11+i*2,1,1,2,'#ff6600');
+  } else if(boss.type==='minion'){
+    // Health Fairy
+    px(22,2,6,6,'#ffccff');
+    px(23,3,4,2,'#ffffff');
+    px(23,3,1,1,'#00aaff'); px(26,3,1,1,'#00aaff');
+    px(24,5,2,1,'#ff6688');
+    px(22,8,6,4,'#ff88ff');
+    px(19,6,3,5,'#ffddff'); px(28,6,3,5,'#ffddff');
+    px(21,12,2,6,'#ff88ff'); px(27,12,2,6,'#ff88ff');
+    for(let i=0;i<8;i++){
+      px(Math.floor(Math.random()*30+5), Math.floor(Math.random()*18+1),1,1,'#ffff00');
+    }
+  } else {
+    // Carb Knight
+    px(18,1,14,4,'#888800');
+    px(18,5,14,8,'#666600');
+    px(18,6,4,3,'#ffddaa'); px(28,6,4,3,'#ffddaa');
+    px(20,9,10,8,'#555500');
+    px(15,5,3,10,'#888800'); px(32,5,3,10,'#888800');
+    px(20,17,4,3,'#444400'); px(26,17,4,3,'#444400');
+  }
+}
+function clearBossCanvas(){
+  const canvas = document.getElementById('bossCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,200,80);
+}
+
+// ========================
+// SIDE QUESTS
+// ========================
+const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function renderQuests(){
+  const today = new Date().getDay();
+  const dayName = days[today];
+  const dateKey = new Date().toDateString();
+  document.getElementById('dayLabel').textContent = `TODAY: ${dayName.toUpperCase()}`;
+  const quests = logicAgent.getQuestsForDay(today);
+  if(!state.quests[dateKey]) state.quests[dateKey] = {};
+  const container = document.getElementById('questList');
+  container.innerHTML = '';
+  let done = 0;
+  quests.forEach(q => {
+    const completed = state.quests[dateKey][q.id];
+    if(completed) done++;
+    const div = document.createElement('div');
+    div.className = 'quest-item' + (completed?' done':'');
+    div.innerHTML = `
+      <div class="quest-check ${completed?'checked':''}">&#10003;</div>
+      <div>
+        <div style="color:var(--cyan);font-size:7px">${q.icon} ${q.name}</div>
+        <div style="color:var(--text);font-size:6px;margin-top:2px">${q.desc}</div>
+      </div>
+    `;
+    if(!completed) div.onclick = () => completeQuest(q,dateKey);
+    container.appendChild(div);
+  });
+  document.getElementById('questCount').textContent = `${done}/3`;
+}
+function completeQuest(q,dateKey){
+  state.quests[dateKey][q.id] = true; save();
+  addXP(50);
+  showNotif('QUEST COMPLETE!', `${q.name} cleared! +50 XP`);
+  renderQuests();
+}
+
+// ========================
+// INVENTORY GUARDIAN
+// ========================
+function addItem(){
+  const name = document.getElementById('invName').value.trim();
+  const expiry = document.getElementById('invExpiry').value;
+  if(!name||!expiry){showNotif('ERROR','Enter item name and expiry date!');return;}
+  const item = {id:Date.now(),name,expiry};
+  state.inventory.push(item); save();
+  document.getElementById('invName').value='';
+  document.getElementById('invExpiry').value='';
+  renderInventory();
+  checkAgentAlerts();
+}
+function removeItem(id){
+  state.inventory = state.inventory.filter(i=>i.id!==id);
+  save(); renderInventory();
+}
+function renderInventory(){
+  const now = new Date(); now.setHours(0,0,0,0);
+  const container = document.getElementById('invList');
+  container.innerHTML = '';
+  if(!state.inventory.length){
+    container.innerHTML='<div style="font-size:7px;color:#555;padding:8px">[ FRIDGE IS EMPTY — ADD ITEMS ]</div>';
+    return;
+  }
+  state.inventory.forEach(item=>{
+    const exp = new Date(item.expiry); exp.setHours(0,0,0,0);
+    const diff = Math.ceil((exp-now)/(1000*60*60*24));
+    const danger = diff<=2 && diff>=0;
+    const expired = diff<0;
+    const div = document.createElement('div');
+    div.className = 'inv-item'+(danger?' danger':'');
+    div.innerHTML = `
+      <div>
+        <span style="color:var(--cyan)">${item.name}</span>
+        <span style="color:#666;margin-left:6px;font-size:6px">EXP: ${item.expiry}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="tag ${expired?'warn':danger?'warn':'safe'}">${expired?'EXPIRED':danger?`${diff}D LEFT`:'SAFE'}</span>
+        <button class="px-btn red" style="font-size:6px;padding:2px 6px" onclick="removeItem(${item.id})">X</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+function checkAgentAlerts(){
+  const expiring = logicAgent.checkInventoryExpiry(state.inventory);
+  const box = document.getElementById('recipeBox');
+  box.innerHTML='';
+  expiring.forEach(item=>{
+    const recipe = logicAgent.generateRecipeQuest(item);
+    const div = document.createElement('div');
+    div.className='recipe-box';
+    div.innerHTML = `&#9888; AGENT ALERT: ${item.name.toUpperCase()} IS TURNING INTO A SLIME MONSTER! CONSUME IT NOW!<br><br>${recipe}`;
+    box.appendChild(div);
+    showModal('&#128027;','AGENT ALERT!',`${item.name} is expiring soon! The Inventory Guardian has generated a Recipe Quest!`,'#ff0040');
+  });
+}
+
+// ========================
+// INIT
+// ========================
+renderXP();
+renderQuests();
+renderInventory();
+checkAgentAlerts();
+if(state.bmi){
+  const cls = logicAgent.classifyBMI(state.bmi);
+  drawAvatar(cls.sprite, cls.color);
+  document.getElementById('avatarLabel').textContent = cls.sprite;
+  document.getElementById('avatarLabel').style.color = cls.color;
+} else {
+  drawAvatar('unknown','#333');
+}
+</script>
+</body>
+</html>
